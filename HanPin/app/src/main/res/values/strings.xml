@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">HanPin</string>
+    <string name="ime_name">HanPin</string>
+    <string name="setup_title">HanPin 입력기</string>
+    <string name="setup_subtitle">한국식 한자음과 병음으로 중국어를 입력할 수 있는 IME</string>
+    <string name="enable_ime_banner">1. HanPin 활성화하기</string>
+    <string name="show_picker_banner">2. 입력 방법 선택 창 열기</string>
+    <string name="setup_hint">먼저 입력기 설정 화면에서 HanPin을 켠 뒤, 두 번째 버튼으로 입력 방법 선택 창을 열어 HanPin을 기본 입력기로 선택하세요. assets 폴더에는 kohan_vocab2.json, pinyin_vocab2.json, kohan_model_lite3.ptl, pinyin_model_lite3.ptl, hangul_hanzi_dict2.csv, pinyin_hanzi_dict2.csv 를 직접 추가하면 됩니다.</string>
+    <string name="show_picker_banner_disabled">2. 먼저 HanPin을 활성화하세요</string>
+    <string name="setup_state_disabled">현재 상태: HanPin이 아직 활성화되지 않았습니다.</string>
+    <string name="setup_state_enabled">현재 상태: HanPin이 활성화되었습니다. 이제 입력 방법 선택을 누르세요.</string>
+    <string name="setup_state_selected">현재 상태: HanPin이 이미 선택되어 있습니다.</string>
+    <string name="setup_settings_fallback">입력기 설정 화면을 직접 열 수 없어 일반 설정을 열었습니다. 설정 &gt; 일반 관리 &gt; 키보드 목록 및 기본값에서 HanPin을 켜주세요.</string>
+    <string name="setup_enable_first">먼저 설정에서 HanPin을 켠 뒤 다시 입력 방법 선택을 눌러주세요.</string>
+    <string name="setup_picker_hint">입력 방법 선택 창에서 HanPin을 선택하세요.</string>
+    <string name="setup_picker_unavailable">이 기기에서 입력 방법 선택 기능을 바로 열지 못했습니다.</string>
+</resources>
