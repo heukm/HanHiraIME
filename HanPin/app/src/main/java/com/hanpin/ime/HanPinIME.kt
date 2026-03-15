@@ -31,10 +31,11 @@ class HanPinIME : InputMethodService(), KeyboardView.OnKeyboardActionListener {
     private lateinit var candidateEngine: CandidateEngine
     private lateinit var hangulKeyboard: Keyboard
     private lateinit var pinyinKeyboard: Keyboard
-    private lateinit var rootView: LinearLayout
-    private lateinit var candidateScroll: HorizontalScrollView
-    private lateinit var candidateRow: LinearLayout
-    private lateinit var keyboardView: HanPinKeyboardView
+
+    private var rootView: LinearLayout? = null
+    private var candidateScroll: HorizontalScrollView? = null
+    private var candidateRow: LinearLayout? = null
+    private var keyboardView: HanPinKeyboardView? = null
 
     private val mainHandler = Handler(Looper.getMainLooper())
     private val worker = Executors.newSingleThreadExecutor()
@@ -45,12 +46,14 @@ class HanPinIME : InputMethodService(), KeyboardView.OnKeyboardActionListener {
     private var mode = Mode.HANGUL
     private var shiftOn = false
     private var lastCandidates: List<String> = emptyList()
+    @Volatile
+    private var isImeAlive = true
 
     private var deleting = false
     private var longPressActivated = false
     private val deleteRunnable = object : Runnable {
         override fun run() {
-            if (!deleting) return
+            if (!deleting || !isImeAlive) return
             longPressActivated = true
             if (hasComposingText()) {
                 cancelCompositionOnly()
@@ -63,42 +66,67 @@ class HanPinIME : InputMethodService(), KeyboardView.OnKeyboardActionListener {
 
     override fun onCreate() {
         super.onCreate()
+        isImeAlive = true
         candidateEngine = CandidateEngine(ModelRunner(applicationContext))
     }
 
     override fun onCreateInputView(): View {
         val padding = dp(4)
-        candidateRow = LinearLayout(this).apply {
+
+        val newCandidateRow = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             setBackgroundColor(Color.BLACK)
-            layoutParams = ViewGroup.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.MATCH_PARENT)
+            layoutParams = ViewGroup.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.MATCH_PARENT,
+            )
             setPadding(dp(8), dp(6), dp(8), dp(6))
         }
-        candidateScroll = HorizontalScrollView(this).apply {
+
+        val newCandidateScroll = HorizontalScrollView(this).apply {
             setBackgroundColor(Color.BLACK)
             isHorizontalScrollBarEnabled = false
             overScrollMode = View.OVER_SCROLL_NEVER
-            addView(candidateRow)
+            addView(newCandidateRow)
         }
-        keyboardView = HanPinKeyboardView(this, null).apply {
+
+        val newKeyboardView = HanPinKeyboardView(this, null).apply {
             setOnKeyboardActionListener(this@HanPinIME)
             isPreviewEnabled = false
             setBackgroundColor(Color.BLACK)
         }
-        rootView = LinearLayout(this).apply {
+
+        val newRootView = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setBackgroundColor(Color.BLACK)
-            addView(candidateScroll, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(52)))
-            addView(keyboardView, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply {
-                topMargin = padding
-            })
+            addView(
+                newCandidateScroll,
+                LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    dp(52),
+                ),
+            )
+            addView(
+                newKeyboardView,
+                LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT,
+                ).apply {
+                    topMargin = padding
+                },
+            )
         }
+
+        candidateRow = newCandidateRow
+        candidateScroll = newCandidateScroll
+        keyboardView = newKeyboardView
+        rootView = newRootView
 
         hangulKeyboard = Keyboard(this, R.xml.korean_keyboard)
         pinyinKeyboard = Keyboard(this, R.xml.english_keyboard)
         applyKeyboard()
         renderCandidates(emptyList())
-        return rootView
+        return newRootView
     }
 
     override fun onStartInputView(info: EditorInfo?, restarting: Boolean) {
@@ -114,7 +142,18 @@ class HanPinIME : InputMethodService(), KeyboardView.OnKeyboardActionListener {
     }
 
     override fun onDestroy() {
+        isImeAlive = false
+        stopDeleteLoop()
+        requestToken.incrementAndGet()
+        mainHandler.removeCallbacksAndMessages(null)
+        keyboardView?.hidePreview()
         worker.shutdownNow()
+
+        candidateRow = null
+        candidateScroll = null
+        keyboardView = null
+        rootView = null
+
         super.onDestroy()
     }
 
@@ -127,6 +166,7 @@ class HanPinIME : InputMethodService(), KeyboardView.OnKeyboardActionListener {
                 applyKeyboard()
                 return
             }
+
             MODE_SWITCH_CODE -> {
                 commitCompositionIfNeeded()
                 mode = if (mode == Mode.HANGUL) Mode.PINYIN else Mode.HANGUL
@@ -135,11 +175,13 @@ class HanPinIME : InputMethodService(), KeyboardView.OnKeyboardActionListener {
                 applyKeyboard()
                 return
             }
+
             Keyboard.KEYCODE_DELETE -> {
                 handleDeleteTap()
                 resetShiftAfterKey()
                 return
             }
+
             ENTER_CODE -> {
                 handleEnter()
                 resetShiftAfterKey()
@@ -151,9 +193,14 @@ class HanPinIME : InputMethodService(), KeyboardView.OnKeyboardActionListener {
             primaryCode == 32 -> commitDirect(" ")
             primaryCode in 48..57 -> commitDirect(primaryCode.toChar().toString())
             primaryCode in CHINESE_PUNCT_CODES -> {
-                val text = if (shiftOn) SHIFTED_PUNCT[primaryCode].orEmpty() else primaryCode.toChar().toString()
+                val text = if (shiftOn) {
+                    SHIFTED_PUNCT[primaryCode].orEmpty()
+                } else {
+                    primaryCode.toChar().toString()
+                }
                 commitDirect(text)
             }
+
             mode == Mode.PINYIN -> handlePinyinKey(primaryCode)
             else -> handleHangulKey(primaryCode)
         }
@@ -161,8 +208,8 @@ class HanPinIME : InputMethodService(), KeyboardView.OnKeyboardActionListener {
     }
 
     override fun onPress(primaryCode: Int) {
-        keyboardView.setPressedCode(primaryCode)
-        keyboardView.showPreviewFor(primaryCode)
+        keyboardView?.setPressedCode(primaryCode)
+        keyboardView?.showPreviewFor(primaryCode)
         if (primaryCode == Keyboard.KEYCODE_DELETE) {
             deleting = true
             longPressActivated = false
@@ -171,8 +218,8 @@ class HanPinIME : InputMethodService(), KeyboardView.OnKeyboardActionListener {
     }
 
     override fun onRelease(primaryCode: Int) {
-        keyboardView.setPressedCode(null)
-        keyboardView.hidePreview()
+        keyboardView?.setPressedCode(null)
+        keyboardView?.hidePreview()
         if (primaryCode == Keyboard.KEYCODE_DELETE) {
             stopDeleteLoop()
         }
@@ -185,15 +232,19 @@ class HanPinIME : InputMethodService(), KeyboardView.OnKeyboardActionListener {
     override fun swipeUp() = Unit
 
     private fun handleHangulKey(primaryCode: Int) {
-        val char = if (shiftOn) SHIFTED_HANGUL[primaryCode] ?: NORMAL_HANGUL[primaryCode]
-        else NORMAL_HANGUL[primaryCode]
+        val char = if (shiftOn) {
+            SHIFTED_HANGUL[primaryCode] ?: NORMAL_HANGUL[primaryCode]
+        } else {
+            NORMAL_HANGUL[primaryCode]
+        }
+
         if (char == null) {
             commitDirect(primaryCode.toChar().toString())
             return
         }
-        if (!hangulComposer.append(char)) {
-            return
-        }
+
+        if (!hangulComposer.append(char)) return
+
         Logger.input("Hangul key=$char")
         refreshComposingUi()
     }
@@ -204,13 +255,16 @@ class HanPinIME : InputMethodService(), KeyboardView.OnKeyboardActionListener {
             commitDirect(base.uppercaseChar().toString())
             return
         }
+
         val normalized = base.lowercaseChar()
         if (normalized !in 'a'..'z') {
             commitDirect(base.toString())
             return
         }
+
         val next = pinyinBuffer.toString() + normalized
         if (PinyinProcessor(emptySet()).normalize(next).length > 48) return
+
         pinyinBuffer.append(normalized)
         Logger.input("Pinyin key=$normalized")
         refreshComposingUi()
@@ -234,16 +288,21 @@ class HanPinIME : InputMethodService(), KeyboardView.OnKeyboardActionListener {
         if (hasComposingText()) {
             commitCompositionIfNeeded()
         }
+
         val ic = currentInputConnection ?: return
-        val action = currentInputEditorInfo?.imeOptions?.and(EditorInfo.IME_MASK_ACTION) ?: EditorInfo.IME_ACTION_NONE
+        val action = currentInputEditorInfo?.imeOptions?.and(EditorInfo.IME_MASK_ACTION)
+            ?: EditorInfo.IME_ACTION_NONE
+
         val handled = when (action) {
             EditorInfo.IME_ACTION_SEARCH,
             EditorInfo.IME_ACTION_GO,
             EditorInfo.IME_ACTION_DONE,
             EditorInfo.IME_ACTION_SEND,
             EditorInfo.IME_ACTION_NEXT -> ic.performEditorAction(action)
+
             else -> false
         }
+
         if (!handled) {
             ic.sendKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_ENTER))
             ic.sendKeyEvent(KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_ENTER))
@@ -284,11 +343,14 @@ class HanPinIME : InputMethodService(), KeyboardView.OnKeyboardActionListener {
         pinyinBuffer.setLength(0)
         requestToken.incrementAndGet()
         lastCandidates = emptyList()
+
         if (dropComposingText) {
             currentInputConnection?.setComposingText("", 1)
             currentInputConnection?.finishComposingText()
         }
+
         renderCandidates(emptyList())
+
         if (!dropComposingText) {
             currentInputConnection?.finishComposingText()
         }
@@ -303,6 +365,7 @@ class HanPinIME : InputMethodService(), KeyboardView.OnKeyboardActionListener {
             renderCandidates(emptyList())
             return
         }
+
         currentInputConnection?.setComposingText(text, 1)
         Logger.compose("Composing='$text'")
         requestCandidates(text)
@@ -316,9 +379,14 @@ class HanPinIME : InputMethodService(), KeyboardView.OnKeyboardActionListener {
                 Mode.HANGUL -> candidateEngine.suggestHangul(text)
                 Mode.PINYIN -> candidateEngine.suggestPinyin(text)
             }
+
             if (token != requestToken.get()) return@execute
+
             mainHandler.post {
+                if (!isImeAlive) return@post
                 if (token != requestToken.get()) return@post
+                if (candidateRow == null || candidateScroll == null) return@post
+
                 lastCandidates = result.candidates
                 renderCandidates(result.candidates)
             }
@@ -326,44 +394,64 @@ class HanPinIME : InputMethodService(), KeyboardView.OnKeyboardActionListener {
     }
 
     private fun renderCandidates(candidates: List<String>) {
-        candidateRow.removeAllViews()
-        candidateRow.setBackgroundColor(Color.BLACK)
+        val row = candidateRow ?: return
+        val scroll = candidateScroll ?: return
+
+        row.removeAllViews()
+        row.setBackgroundColor(Color.BLACK)
+
         if (candidates.isEmpty()) {
             val empty = TextView(this).apply {
                 text = " "
                 setTextColor(Color.WHITE)
                 setPadding(dp(12), dp(8), dp(12), dp(8))
             }
-            candidateRow.addView(empty)
+            row.addView(empty)
             return
         }
+
         val inflater = LayoutInflater.from(this)
         candidates.forEach { candidate ->
-            val view = inflater.inflate(R.layout.candidate_item, candidateRow, false) as TextView
+            val view = inflater.inflate(R.layout.candidate_item, row, false) as TextView
             view.text = candidate
             view.setTextColor(Color.WHITE)
             view.setBackgroundColor(Color.BLACK)
             view.setOnClickListener { commitCandidate(candidate) }
-            candidateRow.addView(view)
+            row.addView(view)
         }
-        candidateScroll.post { candidateScroll.scrollTo(0, 0) }
+
+        scroll.post {
+            if (candidateScroll != null) {
+                scroll.scrollTo(0, 0)
+            }
+        }
     }
 
     private fun currentComposingText(): String {
-        return if (mode == Mode.HANGUL) hangulComposer.composedText() else pinyinBuffer.toString()
+        return if (mode == Mode.HANGUL) {
+            hangulComposer.composedText()
+        } else {
+            pinyinBuffer.toString()
+        }
     }
 
     private fun hasComposingText(): Boolean = currentComposingText().isNotBlank()
 
     private fun applyKeyboard() {
+        val kv = keyboardView ?: return
         val keyboard = if (mode == Mode.HANGUL) hangulKeyboard else pinyinKeyboard
-        keyboardView.keyboard = keyboard
+        kv.keyboard = keyboard
         updateKeyLabels(keyboard)
+
         val height = keyboard.keys.maxOfOrNull { it.y + it.height }?.plus(dp(8)) ?: dp(240)
-        keyboardView.layoutParams = (keyboardView.layoutParams as LinearLayout.LayoutParams).apply {
-            this.height = height
-        }
-        keyboardView.invalidateAllKeys()
+        val params = (kv.layoutParams as? LinearLayout.LayoutParams)
+            ?: LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+            )
+        params.height = height
+        kv.layoutParams = params
+        kv.invalidateAllKeys()
     }
 
     private fun updateKeyLabels(keyboard: Keyboard) {
@@ -380,10 +468,13 @@ class HanPinIME : InputMethodService(), KeyboardView.OnKeyboardActionListener {
                     val letter = code.toChar()
                     if (shiftOn) letter.uppercaseChar().toString() else letter.toString()
                 }
+
                 mode == Mode.HANGUL -> {
                     val shifted = SHIFTED_HANGUL[code]
-                    if (shiftOn && shifted != null) shifted.toString() else NORMAL_HANGUL[code]?.toString() ?: key.label
+                    if (shiftOn && shifted != null) shifted.toString()
+                    else NORMAL_HANGUL[code]?.toString() ?: key.label
                 }
+
                 else -> key.label
             }
         }
