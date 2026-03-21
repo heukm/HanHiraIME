@@ -67,6 +67,7 @@ class HanPinIME : InputMethodService(), KeyboardView.OnKeyboardActionListener {
     override fun onCreate() {
         super.onCreate()
         isImeAlive = true
+        LabeledCandidateHighlighter.ensureLoaded(applicationContext)
         candidateEngine = CandidateEngine(ModelRunner(applicationContext))
     }
 
@@ -410,11 +411,12 @@ class HanPinIME : InputMethodService(), KeyboardView.OnKeyboardActionListener {
             return
         }
 
+        val currentInput = currentComposingText()
         val inflater = LayoutInflater.from(this)
         candidates.forEach { candidate ->
             val view = inflater.inflate(R.layout.candidate_item, row, false) as TextView
             view.text = candidate
-            view.setTextColor(Color.WHITE)
+            view.setTextColor(LabeledCandidateHighlighter.colorForCandidate(currentInput, candidate))
             view.setBackgroundColor(Color.BLACK)
             view.setOnClickListener { commitCandidate(candidate) }
             row.addView(view)
