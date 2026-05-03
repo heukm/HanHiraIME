@@ -1,0 +1,3 @@
+-keep class org.pytorch.** { *; }
+-keep class com.hanhira.ime.** { *; }
+-dontwarn org.pytorch.**

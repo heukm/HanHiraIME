@@ -1,3 +1,0 @@
--keep class org.pytorch.** { *; }
--keep class com.hanpin.ime.** { *; }
--dontwarn org.pytorch.**

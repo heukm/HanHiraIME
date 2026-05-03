@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">HanHira</string>
+    <string name="ime_name">HanHira</string>
+    <string name="setup_title">HanHira 입력기</string>
+    <string name="setup_subtitle">한국식 한자음과 히라가나/가타카나 한글음으로 일본어를 입력할 수 있는 IME</string>
+    <string name="enable_ime_banner">1. HanHira 활성화하기</string>
+    <string name="show_picker_banner">2. 입력 방법 선택 창 열기</string>
+    <string name="setup_hint">app/src/main/assets/assetsJap/ 또는 app/src/main/assetsJap/ 폴더에 kohan_vocab2.json, kohan_model_lite3.ptl, combined_korean_japanese2.xlsx, kana.xlsx 4개 파일을 복사하세요. Android Studio가 붙인 괄호 파일명도 자동 탐색합니다.</string>
+    <string name="show_picker_banner_disabled">2. 먼저 HanHira를 활성화하세요</string>
+    <string name="setup_state_disabled">현재 상태: HanHira가 아직 활성화되지 않았습니다.</string>
+    <string name="setup_state_enabled">현재 상태: HanHira가 활성화되었습니다. 이제 입력 방법 선택을 누르세요.</string>
+    <string name="setup_state_selected">현재 상태: HanHira가 이미 선택되어 있습니다.</string>
+    <string name="setup_settings_fallback">입력기 설정 화면을 직접 열 수 없어 일반 설정을 열었습니다. 설정에서 HanHira를 켜주세요.</string>
+    <string name="setup_enable_first">먼저 설정에서 HanHira를 켠 뒤 다시 입력 방법 선택을 눌러주세요.</string>
+    <string name="setup_picker_hint">입력 방법 선택 창에서 HanHira를 선택하세요.</string>
+    <string name="setup_picker_unavailable">이 기기에서 입력 방법 선택 기능을 바로 열지 못했습니다.</string>
+    <string name="candidate_placeholder">候補 없음</string>
+</resources>

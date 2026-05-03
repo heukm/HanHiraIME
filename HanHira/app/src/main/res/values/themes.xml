@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.HanHira" parent="Theme.Material3.DayNight.NoActionBar">
+        <item name="android:statusBarColor">#E4E4E6</item>
+        <item name="android:navigationBarColor">#E4E4E6</item>
+        <item name="android:windowBackground">#E4E4E6</item>
+        <item name="colorPrimary">#000000</item>
+        <item name="colorSurface">#E4E4E6</item>
+        <item name="colorOnSurface">#000000</item>
+    </style>
+</resources>
