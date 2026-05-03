@@ -16,7 +16,7 @@ HanHiraIME는 한글을 이용한 일본어 입력기입니다.
 C:\Users\사용자명\AndroidStudioProjects 에 HanHira 폴더를 집어넣고  
 안드로이드 스튜디오에서  
 File -> Sync Project with Gradle Files  
--> Run 'app'  
+-> 상단메뉴의 삼각형 Run 'app' 버튼 누르기
 
 ## 프로젝트 구조  
 ```
